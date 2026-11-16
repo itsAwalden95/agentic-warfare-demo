@@ -127,9 +127,17 @@ model's live rationale.
 | **GPU/CPU scale-out** | path to the real research platform | [`deploy/ibm/vpc-gpu-scaleout.md`](deploy/ibm/vpc-gpu-scaleout.md) |
 
 ```bash
-# one-command demo deploy (after `ibmcloud login`)
-cd agentic-cyber-range && ./deploy/ibm/code-engine-deploy.sh
+# one-command demo deploy, heuristic mode, no secrets (after `ibmcloud login`
+# and `ibmcloud plugin install code-engine`):
+git clone https://github.com/itsAwalden95/agentic-warfare-demo
+cd agentic-warfare-demo && ./deploy/ibm/code-engine-deploy.sh
 ```
+
+The script builds straight from source with Code Engine (no local Docker) and
+deploys a single always-warm instance (`--min-scale 1 --max-scale 1`, because
+the simulation is one shared in-memory battle). On the first build, accept
+Code Engine's prompt to auto-configure registry access. It prints the public
+HTTPS dashboard URL at the end.
 
 ---
 
