@@ -1,0 +1,8 @@
+# Core demo runtime
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+
+# Optional: IBM watsonx.ai LLM commander layer. The demo runs fine without it
+# (heuristic fallback). Install to enable LLM-driven swarm strategy.
+# ibm-watsonx-ai==1.1.25

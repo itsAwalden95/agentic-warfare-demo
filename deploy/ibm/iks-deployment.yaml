@@ -1,0 +1,93 @@
+# Agentic Cyber Range on IBM Cloud Kubernetes Service (IKS) or Red Hat
+# OpenShift on IBM Cloud (ROKS). Use this path when the client wants the
+# research platform on a cluster they control (RBAC, network policy, GPU
+# node pools for scaled LLM inference).
+#
+# Replace <REGION> and <ICR_NAMESPACE> with your values, then:
+#   kubectl apply -f iks-deployment.yaml
+#
+# For the watsonx LLM commander, create the secret first:
+#   kubectl -n cyber-range create secret generic watsonx-creds \
+#     --from-literal=WATSONX_API_KEY=... --from-literal=WATSONX_PROJECT_ID=...
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cyber-range
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cyber-range
+  namespace: cyber-range
+  labels: { app: cyber-range }
+spec:
+  replicas: 1                      # one shared in-memory simulation per instance
+  selector:
+    matchLabels: { app: cyber-range }
+  template:
+    metadata:
+      labels: { app: cyber-range }
+    spec:
+      containers:
+        - name: cyber-range
+          image: <REGION>.icr.io/<ICR_NAMESPACE>/cyber-range:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: WATSONX_URL
+              value: "https://us-south.ml.cloud.ibm.com"
+            - name: WATSONX_MODEL_ID
+              value: "meta-llama/llama-3-3-70b-instruct"
+          # watsonx creds are optional; remove envFrom to run heuristic-only.
+          envFrom:
+            - secretRef:
+                name: watsonx-creds
+                optional: true
+          resources:
+            requests: { cpu: "500m", memory: "1Gi" }
+            limits:   { cpu: "2",    memory: "2Gi" }
+          readinessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cyber-range
+  namespace: cyber-range
+spec:
+  selector: { app: cyber-range }
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+# Expose publicly. On IKS this provisions an ALB route; on ROKS prefer a Route.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cyber-range
+  namespace: cyber-range
+  annotations:
+    # WebSocket needs sticky, long-lived upstreams:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  rules:
+    - host: cyber-range.<your-ingress-subdomain>.containers.appdomain.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cyber-range
+                port: { number: 80 }

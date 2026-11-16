@@ -1,0 +1,14 @@
+# Local containerized run:  docker compose up --build  ->  http://localhost:8080
+services:
+  cyber-range:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      # Uncomment and fill to enable the IBM watsonx.ai LLM commander layer:
+      # WATSONX_API_KEY: "${WATSONX_API_KEY}"
+      # WATSONX_URL: "https://us-south.ml.cloud.ibm.com"
+      # WATSONX_PROJECT_ID: "${WATSONX_PROJECT_ID}"
+      # WATSONX_MODEL_ID: "meta-llama/llama-3-3-70b-instruct"
+    restart: unless-stopped
