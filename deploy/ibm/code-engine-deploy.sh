@@ -23,7 +23,10 @@ ICR_NAMESPACE="${ICR_NAMESPACE:-cyber-range-ns}"     # container registry namesp
 IMAGE="${IMAGE:-${REGION}.icr.io/${ICR_NAMESPACE}/cyber-range:latest}"
 
 # Optional watsonx.ai LLM commander (leave blank to run heuristic-only).
+# Supply EITHER an API key (durable, recommended) OR a bearer token (~1h, not
+# refreshed -- for a quick demo only; see watsonx-setup.md).
 WATSONX_API_KEY="${WATSONX_API_KEY:-}"
+WATSONX_TOKEN="${WATSONX_TOKEN:-}"
 WATSONX_URL="${WATSONX_URL:-https://${REGION}.ml.cloud.ibm.com}"
 WATSONX_PROJECT_ID="${WATSONX_PROJECT_ID:-}"
 WATSONX_MODEL_ID="${WATSONX_MODEL_ID:-meta-llama/llama-3-3-70b-instruct}"
@@ -53,18 +56,19 @@ ibmcloud ce build create --name cyber-range-build \
 ibmcloud ce buildrun submit --build cyber-range-build --wait
 
 # ---- 4. watsonx secret (optional) -----------------------------------------
+# Enabled by an API key OR a bearer token, as long as a project id is set.
 ENV_ARGS=()
-if [[ -n "${WATSONX_API_KEY}" && -n "${WATSONX_PROJECT_ID}" ]]; then
+if [[ -n "${WATSONX_PROJECT_ID}" && ( -n "${WATSONX_API_KEY}" || -n "${WATSONX_TOKEN}" ) ]]; then
   echo "==> Creating watsonx secret"
-  ibmcloud ce secret create --name watsonx-creds \
-    --from-literal "WATSONX_API_KEY=${WATSONX_API_KEY}" \
-    --from-literal "WATSONX_PROJECT_ID=${WATSONX_PROJECT_ID}" 2>/dev/null \
-    || ibmcloud ce secret update --name watsonx-creds \
-         --from-literal "WATSONX_API_KEY=${WATSONX_API_KEY}" \
-         --from-literal "WATSONX_PROJECT_ID=${WATSONX_PROJECT_ID}"
+  SECRET_ARGS=(--from-literal "WATSONX_PROJECT_ID=${WATSONX_PROJECT_ID}")
+  [[ -n "${WATSONX_API_KEY}" ]] && SECRET_ARGS+=(--from-literal "WATSONX_API_KEY=${WATSONX_API_KEY}")
+  [[ -n "${WATSONX_TOKEN}"   ]] && SECRET_ARGS+=(--from-literal "WATSONX_TOKEN=${WATSONX_TOKEN}")
+  ibmcloud ce secret create --name watsonx-creds "${SECRET_ARGS[@]}" 2>/dev/null \
+    || ibmcloud ce secret update --name watsonx-creds "${SECRET_ARGS[@]}"
   ENV_ARGS=(--env-from-secret watsonx-creds
             --env "WATSONX_URL=${WATSONX_URL}"
             --env "WATSONX_MODEL_ID=${WATSONX_MODEL_ID}")
+  [[ -n "${WATSONX_TOKEN}" ]] && echo "   NOTE: a bearer token is ~1h and not refreshed; prefer an API key for a persistent deploy."
 fi
 
 # ---- 5. deploy / update the app -------------------------------------------

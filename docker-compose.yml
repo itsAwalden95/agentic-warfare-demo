@@ -6,8 +6,11 @@ services:
       - "8080:8080"
     environment:
       PORT: "8080"
-      # Uncomment and fill to enable the IBM watsonx.ai LLM commander layer:
+      # Uncomment and fill to enable the IBM watsonx.ai LLM commander layer.
+      # Use EITHER an API key OR a bearer token (token wins if both are set;
+      # a token is ~1h and not refreshed -- see deploy/ibm/watsonx-setup.md):
       # WATSONX_API_KEY: "${WATSONX_API_KEY}"
+      # WATSONX_TOKEN: "${WATSONX_TOKEN}"
       # WATSONX_URL: "https://us-south.ml.cloud.ibm.com"
       # WATSONX_PROJECT_ID: "${WATSONX_PROJECT_ID}"
       # WATSONX_MODEL_ID: "meta-llama/llama-3-3-70b-instruct"

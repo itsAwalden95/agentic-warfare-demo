@@ -107,10 +107,13 @@ docker compose up --build            # http://localhost:8080
 
 ### Enable the IBM watsonx.ai LLM commander
 
-Set `WATSONX_API_KEY`, `WATSONX_URL`, `WATSONX_PROJECT_ID`, `WATSONX_MODEL_ID`
-(see [`deploy/ibm/watsonx-setup.md`](deploy/ibm/watsonx-setup.md)). The
-commander badge flips from **heuristic** to **watsonx LLM** and each commander
-card shows the model's live rationale.
+Set `WATSONX_PROJECT_ID`, `WATSONX_URL`, `WATSONX_MODEL_ID`, and **either**
+`WATSONX_API_KEY` (durable) **or** `WATSONX_TOKEN` (a bearer access token, for
+when you can't create an IAM key — ~1h, not refreshed; token wins if both are
+set). See [`deploy/ibm/watsonx-setup.md`](deploy/ibm/watsonx-setup.md) for the
+API-key / token / Service-ID / trusted-profile options. The commander badge
+flips from **heuristic** to **watsonx LLM** and each commander card shows the
+model's live rationale.
 
 ---
 

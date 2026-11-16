@@ -42,6 +42,35 @@ WATSONX_MODEL_ID=meta-llama/llama-3-3-70b-instruct
 - **IKS/ROKS:** create the `watsonx-creds` secret (see `iks-deployment.yaml`).
 - **Local:** `export` them (or put them in `docker-compose.yml`) before running.
 
+### Authenticating without a personal IAM API key
+
+If you cannot create an IAM API key, pick one of these instead:
+
+| How | Env var | Lifespan | Best for |
+|-----|---------|----------|----------|
+| **Bearer access token** (direct) | `WATSONX_TOKEN` | ~1 hour, **not refreshed** | a demo session / quick test |
+| **Service ID API key** (admin-issued) | `WATSONX_API_KEY` | long-lived | a deployed server |
+| **Trusted profile** (compute-resource token) | *(none stored)* | auto | Code Engine / IKS / ROKS, most secure |
+
+**Direct token path** — set `WATSONX_TOKEN` instead of `WATSONX_API_KEY`
+(still set `WATSONX_PROJECT_ID`). The client uses the token directly as the
+bearer credential and skips the IAM exchange:
+
+```bash
+# watsonx.ai on IBM Cloud: mint a ~1h IAM access token without an API key
+ibmcloud login --sso
+export WATSONX_TOKEN="$(ibmcloud iam oauth-tokens --output json | python3 -c 'import sys,json;print(json.load(sys.stdin)["iam_token"].split()[1])')"
+export WATSONX_PROJECT_ID=<your project id>
+# Cloud Pak for Data: set WATSONX_TOKEN to your CPD platform bearer token.
+```
+
+> ⚠️ A directly-supplied token is **not auto-refreshed**. When it expires the
+> commander silently falls back to the heuristic strategist until you supply a
+> fresh token. For anything long-running, use a **Service ID API key** (set it
+> as `WATSONX_API_KEY` — no code change) or a **trusted profile**.
+
+Precedence: if both are set, `WATSONX_TOKEN` wins over `WATSONX_API_KEY`.
+
 Install the optional SDK for the richer client path:
 
 ```bash

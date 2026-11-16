@@ -6,9 +6,13 @@
 # Replace <REGION> and <ICR_NAMESPACE> with your values, then:
 #   kubectl apply -f iks-deployment.yaml
 #
-# For the watsonx LLM commander, create the secret first:
+# For the watsonx LLM commander, create the secret first with EITHER an API key
+# (durable) or a bearer token (~1h, not refreshed -- see watsonx-setup.md):
 #   kubectl -n cyber-range create secret generic watsonx-creds \
 #     --from-literal=WATSONX_API_KEY=... --from-literal=WATSONX_PROJECT_ID=...
+#   # or, token instead of key:
+#   kubectl -n cyber-range create secret generic watsonx-creds \
+#     --from-literal=WATSONX_TOKEN=... --from-literal=WATSONX_PROJECT_ID=...
 ---
 apiVersion: v1
 kind: Namespace

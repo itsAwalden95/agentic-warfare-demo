@@ -5,7 +5,17 @@ Design goals:
   * Zero hard dependency at import time -- the whole demo must run with no
     watsonx credentials (heuristic fallback). watsonx is an *enhancement*.
   * Credentials come only from environment variables, never the code:
-        WATSONX_API_KEY      IAM api key
+        WATSONX_API_KEY      IAM api key (exchanged for a bearer token)
+        WATSONX_TOKEN        a bearer access token, used directly (alternative
+                             to WATSONX_API_KEY when you cannot create an IAM
+                             key). NOTE: IAM access tokens are short-lived
+                             (~1h) and are NOT auto-refreshed here -- on expiry
+                             calls 401 and the commander falls back to the
+                             heuristic until a fresh token is supplied. Good
+                             for a demo session; use an API key (or a Service
+                             ID key / trusted profile) for a long-running
+                             deployment. For Cloud Pak for Data, supply the
+                             platform bearer token here.
         WATSONX_URL          e.g. https://us-south.ml.cloud.ibm.com
         WATSONX_PROJECT_ID   watsonx.ai project id
         WATSONX_MODEL_ID     e.g. meta-llama/llama-3-3-70b-instruct
@@ -23,6 +33,8 @@ from typing import Optional
 class WatsonxClient:
     def __init__(self) -> None:
         self.api_key = os.getenv("WATSONX_API_KEY", "")
+        # A directly-supplied bearer token takes precedence over the API key.
+        self.direct_token = os.getenv("WATSONX_TOKEN", "")
         self.url = os.getenv("WATSONX_URL", "https://us-south.ml.cloud.ibm.com")
         self.project_id = os.getenv("WATSONX_PROJECT_ID", "")
         self.model_id = os.getenv("WATSONX_MODEL_ID",
@@ -34,16 +46,21 @@ class WatsonxClient:
 
     @property
     def available(self) -> bool:
-        return bool(self.api_key and self.project_id)
+        # Usable with either an API key or a directly-supplied bearer token.
+        return bool(self.project_id and (self.api_key or self.direct_token))
 
     def _init_sdk(self) -> None:
-        """Prefer the official ibm-watsonx-ai SDK if it's installed."""
+        """Prefer the official ibm-watsonx-ai SDK if it's installed. Falls back
+        to the REST path (self._model stays None) on any failure, including an
+        SDK build that does not accept the credential form supplied."""
         if not self.available:
             return
         try:
             from ibm_watsonx_ai import Credentials  # type: ignore
             from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore
-            creds = Credentials(url=self.url, api_key=self.api_key)
+            creds = (Credentials(url=self.url, token=self.direct_token)
+                     if self.direct_token
+                     else Credentials(url=self.url, api_key=self.api_key))
             self._model = ModelInference(
                 model_id=self.model_id,
                 credentials=creds,
@@ -55,8 +72,12 @@ class WatsonxClient:
             # SDK not installed or init failed -> use REST path lazily.
             self._model = None
 
-    # -- IAM token for the REST fallback path ----------------------------
+    # -- bearer token for the REST path ----------------------------------
     def _iam_token(self) -> Optional[str]:
+        # Directly-supplied token: use as-is (no exchange, no refresh). If it
+        # has expired the downstream call simply 401s and we fall back.
+        if self.direct_token:
+            return self.direct_token
         if self._token and time.time() < self._token_exp - 60:
             return self._token
         try:
